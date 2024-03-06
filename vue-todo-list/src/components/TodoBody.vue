@@ -1,108 +1,8 @@
-<script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { useInfiniteScroll, useDark, useToggle  } from '@vueuse/core';
-
-
-const isDark = useDark({
-  selector: 'body',
-  attribute: 'color-scheme',
-  valueDark: 'dark',
-  valueLight: 'light',
-})
-
-const toggleDark = useToggle(isDark)
-console.log(toggleDark)
-const localStorageKey = 'todos';
-
-const initialTodos = JSON.parse(localStorage.getItem(localStorageKey)) || [
-  { text: 'Learn Laravel', done: true },
-  { text: 'Learn the basics of Vue js', done: false }
-];
-
-const staticTodos = ref(initialTodos);
-const el = ref<HTMLElement | null>(null);
-
-const newTodo = ref({
-  text: '',
-  done: false
-});
-
-const addTodo = () => {
-  if (newTodo.value.text.trim()) {
-    staticTodos.value.push({ ...newTodo.value });
-    newTodo.value = {
-      text: '',
-      done: false
-    };
-    saveTodos();
-  } else {
-    alert('Please enter a value');
-  }
-};
-
-const clearAll = () => {
-  staticTodos.value.splice(0, staticTodos.value.length);
-  saveTodos();
-};
-
-const toggleTodo = (index) => {
-  staticTodos.value[index].done = !staticTodos.value[index].done;
-  saveTodos();
-};
-
-const saveTodos = () => {
-  localStorage.setItem(localStorageKey, JSON.stringify(staticTodos.value));
-};
-
-function onLoadMore() {
-  if (!/^\d+$/.test(newTodo.value.text.trim())) {
-    const length = staticTodos.value.length + 1;
-    staticTodos.value.push(...Array.from({ length: 5 }, (_, i) => length + i));
-  }
-}
-
-
-onMounted(() => {
-  staticTodos.value = JSON.parse(localStorage.getItem(localStorageKey)) || [];
-});
-
-useInfiniteScroll(el, onLoadMore, { distance: 5 });
-
-const startDrag = (event, todo, index) => {
-  // console.log(todo)
-  // console.log(index)
-  event.dataTransfer.dropEffect = 'move';
-  event.dataTransfer.effectAllowed = 'move';
-  event.dataTransfer.setData('itemIndex', index.toString());
-};
-
-const onDrop = (event, targetTodo, targetIndex) => {
-  if (targetIndex) {
-    const draggedIndex = parseInt(event.dataTransfer.getData('itemIndex'), 10);
-    const draggedTodo = staticTodos.value[draggedIndex];
-    
-    // console.log(draggedTodo)
-    if (draggedTodo) {
-      // Swap todos at draggedIndex and targetIndex
-      [staticTodos.value[draggedIndex], staticTodos.value[targetIndex]] = [
-        staticTodos.value[targetIndex],
-        staticTodos.value[draggedIndex]
-      ];
-
-      saveTodos();
-    }
-  }
-};
-
-const onDragEnd = (event) => {
-  event.preventDefault();
-};
-</script>
-
 <template>
   <section class="todo-list" :class="{ dark: isDark, light: !isDark }">
     <h3>To-do List</h3>
 
+    <!-- Toggle Dark Mode -->
     <input type="checkbox" id="toggle_checkbox" @click="toggleDark()">
     <label for="toggle_checkbox">
       <div id="star">
@@ -112,13 +12,17 @@ const onDragEnd = (event) => {
       <div id="moon"></div>
     </label>
 
-    <input type="text" placeholder="Add Items" @keyup.enter="addTodo" v-model="newTodo.text" />
-    <button class="add" @click="addTodo()">Add</button>
+    <!-- Add Todo Input and Button -->
+    <div class="add-todo-container">
+      <input type="text" placeholder="Add Items" @keyup.enter="addTodo" v-model="newTodo.text" />
+      <button class="add" @click="addTodo()">Add</button>
+    </div>
 
+    <!-- Clear All Button -->
     <button class="clear" @click="clearAll()" v-if="staticTodos.length">Clear All</button>
 
-
-    <div @dragend="onDragEnd" @dragenter.prevent @dragover.prevent ref="el" class="all-todos" style="overflow-y: auto; max-height: 400px;">
+    <!-- Todo List -->
+    <div @dragend="onDragEnd" @dragenter.prevent @dragover.prevent ref="el" class="all-todos">
       <div
         v-for="(todo, index) in staticTodos"
         class="single-todo"
@@ -133,6 +37,96 @@ const onDragEnd = (event) => {
     </div>
   </section>
 </template>
+
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+import { useInfiniteScroll, useDark, useToggle } from '@vueuse/core';
+
+const isDark = useDark({
+  selector: 'body',
+  attribute: 'color-scheme',
+  valueDark: 'dark',
+  valueLight: 'light',
+});
+
+interface Todo {
+  text: string;
+  done: boolean;
+}
+
+
+const toggleDark = useToggle(isDark);
+const localStorageKey = 'todos';
+const initialTodos: Todo[] = JSON.parse(localStorage.getItem(localStorageKey) || '[]');
+const staticTodos = ref(initialTodos);
+const el = ref<HTMLElement | null>(null);
+const newTodo = ref({ text: '', done: false });
+
+const addTodo = () => {
+  if (newTodo.value.text.trim()) {
+    staticTodos.value.push({ ...newTodo.value });
+    newTodo.value = { text: '', done: false };
+    saveTodos();
+  } else {
+    alert('Please enter a value');
+  }
+};
+
+const clearAll = () => {
+  staticTodos.value.splice(0, staticTodos.value.length);
+  saveTodos();
+};
+
+const toggleTodo = (index: number) => {
+  staticTodos.value[index].done = !staticTodos.value[index].done;
+  saveTodos();
+};
+
+const saveTodos = () => {
+  localStorage.setItem(localStorageKey, JSON.stringify(staticTodos.value));
+};
+
+function onLoadMore() {
+  if (!/^\d+$/.test(newTodo.value.text.trim())) {
+    const length = staticTodos.value.length + 1;
+    const newData = Array.from({ length: 5 }, (_, i) => length + i);
+  }
+}
+
+onMounted(() => {
+  const storedTodos = JSON.parse(localStorage.getItem(localStorageKey) || '[]') as Todo[];
+  staticTodos.value.splice(0, staticTodos.value.length, ...storedTodos);
+});
+
+useInfiniteScroll(el, onLoadMore, { distance: 5 });
+
+const startDrag = (event: DragEvent, todo: Todo, index: number): void => {
+  event.dataTransfer!.dropEffect = 'move';
+  event.dataTransfer!.effectAllowed = 'move';
+  event.dataTransfer!.setData('itemIndex', index.toString());
+};
+
+const onDrop = (event: DragEvent, targetTodo: Todo, targetIndex: number): void => {
+  if (targetIndex) {
+    const dataTransfer = event.dataTransfer!;
+    const draggedIndex = parseInt(dataTransfer.getData('itemIndex'), 10);
+    const draggedTodo = staticTodos.value[draggedIndex];
+    if (draggedTodo) {
+      [staticTodos.value[draggedIndex], staticTodos.value[targetIndex]] = [
+        staticTodos.value[targetIndex],
+        staticTodos.value[draggedIndex],
+      ];
+      saveTodos();
+    }
+  }
+};
+
+
+const onDragEnd = (event: DragEvent): void => {
+  event.preventDefault();
+};
+</script>
+
 
 
 <style scoped>
