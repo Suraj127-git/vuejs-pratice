@@ -22,7 +22,7 @@
     <button class="clear" @click="clearAll()" v-if="staticTodos.length">Clear All</button>
 
     <!-- Todo List -->
-    <div @dragend="onDragEnd" @dragenter.prevent @dragover.prevent ref="el" class="all-todos">
+    <div @dragend="onDragEnd" @dragenter.prevent @dragover.prevent ref="el" class="all-todos" :class="{ 'all-todos-scrollable': isInfinteScrollEnabled }">
       <div
         v-for="(todo, index) in staticTodos"
         class="single-todo"
@@ -54,7 +54,7 @@ interface Todo {
   done: boolean;
 }
 
-
+const isInfinteScrollEnabled = ref(false);
 const toggleDark = useToggle(isDark);
 const localStorageKey = 'todos';
 const initialTodos: Todo[] = JSON.parse(localStorage.getItem(localStorageKey) || '[]');
@@ -74,6 +74,7 @@ const addTodo = () => {
 
 const clearAll = () => {
   staticTodos.value.splice(0, staticTodos.value.length);
+  isInfinteScrollEnabled.value = false;
   saveTodos();
 };
 
@@ -87,6 +88,12 @@ const saveTodos = () => {
 };
 
 function onLoadMore() {
+  console.log(staticTodos.value.length);
+  if (staticTodos.value.length >= 5) {
+    // Enable infinite scroll
+    isInfinteScrollEnabled.value = true;
+  }
+
   if (!/^\d+$/.test(newTodo.value.text.trim())) {
     const length = staticTodos.value.length + 1;
     const newData = Array.from({ length: 5 }, (_, i) => length + i);
@@ -98,7 +105,7 @@ onMounted(() => {
   staticTodos.value.splice(0, staticTodos.value.length, ...storedTodos);
 });
 
-useInfiniteScroll(el, onLoadMore, { distance: 5 });
+useInfiniteScroll(el, onLoadMore, { distance: 200 });
 
 const startDrag = (event: DragEvent, todo: Todo, index: number): void => {
   event.dataTransfer!.dropEffect = 'move';
@@ -194,6 +201,12 @@ main > section.todo-list {
   text-align: center;
   border-radius: 0.30rem;
 }
+
+.all-todos-scrollable {
+  height: 300px;
+  overflow-y: scroll;
+}
+
 
 main .all-todos .single-todo {
   display: flex;
